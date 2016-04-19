@@ -38,9 +38,9 @@ jukebox from Nov 30, 2003 to Jan 22, 2009 (included in `HW-3` folder).
 
 ```{r, echo=FALSE, cache=TRUE}
 # DO NOT EDIT THIS SECTION!
-profiles <- read.csv("/Users/christianlehner/Desktop/Spring 2016/Data Science/HW 3/copyofprofiles.csv", header=TRUE) %>% 
+profiles <- read.csv("data/profiles.csv", header=TRUE) %>% 
   tbl_df()
-jukebox <- read.csv("/Users/christianlehner/Desktop/Spring 2016/Data Science/HW 3/data/jukebox.csv", header=TRUE) %>% 
+jukebox <- read.csv("data/jukebox.csv", header=TRUE) %>% 
   tbl_df()
 ```
 
@@ -58,6 +58,7 @@ profiles$last_online <- as.Date(profiles$last_online)
 ## Question 1:
 For this question we will be picking up from where we left off in HW-2,
 specifically the OkCupid dataset.
+
 ### a)
 
 Using your exploratory data analysis from HW-2, fit a logistic regression to predict individual's gender and interpret the results for one continuous variable (if you used one) and one categorical variable of your choice
@@ -86,7 +87,8 @@ ggplot_missing <- function(x){
 ggplot_missing(profiles) #shows which variables have the most missing
 
 ```
-I looked at the variables that had the most amount of missing values to see what 
+
+>I looked at the variables that had the most amount of missing values to see what 
 variables people either on purpose left blank or where to lazy to answer. 
 If there are also patterns in the missing values, say they only added certain 
 questions later this would be important.
@@ -121,7 +123,7 @@ body_type
 
 ```
 
-I binned all the factors of the body type variable into two factors, creating a dichotomous variable for the logistic regression.
+>I binned all the factors of the body type variable into two factors, creating a dichotomous variable for the logistic regression.
 I first plotted the variables to determine which factors should be added to masculine or feminine. 
 I also looked at the two distributions of heights. Notice the "jump" at around 72 inches, 6 ft, in the male height distribution; I believe that is jump is less due to 
 physiological reasons as much as psychological ones.
@@ -174,7 +176,8 @@ summary(log_reg) #summary
 
 
 ```
-43.639564-0.636127(height)-1.314507(body_type)
+
+>The intercept shows that clearly there are more males in the data set then women. At the cuttoff of 67 inches the variable body_type changes the probability from 0.37 with those that are feminine to 0.68551 for those that are masculine.
 
 ### b)
 
@@ -200,14 +203,20 @@ prob <- ggplot(profiles_prob, aes((log(p.hat/(1-p.hat))), p.hat))+
   labs(title="Values of p.hat versus logit_p.hat")
 prob
 profiles_prob$body <- ifelse(profiles_prob$body_type =="masculine", c(1), c(0))
-prob <- ggplot(profiles_prob, aes(height,(43.639564 - 0.636127*(height)-1.314507*(body))))+
-  geom_bar(stat="identity") + labs(title="Shows Cuttoff of Height Where Predictions Change") +
-  geom_vline(aes(xintercept = ((43.639564-1.314507*0.5)/(0.636127)), colour = "red", legend = FALSE))
+prob <- ggplot(profiles_prob, aes(x=height,y=((43.639564 - 0.636127*(height)-1.314507*(body))))) +
+  geom_bar(stat="identity") + 
+  ggtitle("Shows Cuttoff of Height Where Predictions Change\nWhere when y = 0, 50% Probability") +
+  ylab("Logit") +
+  geom_vline(aes(xintercept = ((43.639564-1.314507*0.5)/(0.636127)), color = "Change in Prob"))
 prob
+
 ```
-The fitted probabilities are not consistent not all of the probabilities this is due to our explanatory variables.
-The mosaic plot shows visually what proportion of sex is predicted correctly or not. I would say that because masculinity is fragile, our type one error 
-would be predicting a male to be female and this model does OK at minimizing this. 
+
+>The fitted probabilities are not consistent not all of the probabilities this is due to our explanatory variables.
+The mosaic plot shows visually what proportion of sex is predicted correctly or not. I would say that because masculinity is fragile, our type one error would be predicting a male to be female and this model does OK at minimizing this. 
+(43.639564 - 1.314507*(0.5))/(0.636127)) = 67.56876 inches
+
+
 
 ### c)
 
@@ -227,12 +236,13 @@ g<- profiles_prob %>%
   group_by(is.female,predicted.female) %>% 
   tally()
 g
-
 kable(spread(g, predicted.female, n))
 
 ```
-The predictions did OK. We miss predicted 3958 males to be female but because our sample is roughly 60,000 this is not to bad. 
+
+>The predictions did OK. We miss predicted 3958 males to be female but because our sample is roughly 60,000 this is not to bad. 
 I wonder what other variables could create a more predictive model. Cross validation could also definitely help.
+
 ### d)
 
 Say we wanted to have a **false positive rate** of about 20%, i.e. of the people
@@ -255,7 +265,9 @@ h
 kable(spread(h, predicted.female, prop))
 
 ```
-I dont know the exact mathematical process to this so I just kinda narrowed it down to a threshold of .2,
+
+
+>I dont know the exact mathematical process to this so I just kinda narrowed it down to a threshold of .2,
 this brings us only 17.5% of miss predicted males as females. 
 
 
@@ -300,7 +312,8 @@ ggplot(jukebox1, aes(date2, count_per_w)) +
   geom_vline(xintercept = as.numeric(as.Date(dmy("1/9/2004","1/9/2005","1/9/2006","1/9/2007","1/9/2008","1/9/2009"))), linetype=4, colour="blue")
   
 ```
-It is pretty apparent summer students don't use the juke box as much as those during the normal academic months.
+
+>It is pretty apparent summer school students don't use the juke box as much as those during the normal academic months.
 
 
 
@@ -351,8 +364,8 @@ df
 kable(da)
 kable(df)
 ```
-I sorted by academic year, subsetted it, and then, used the fact that is military time to create a variable with only ours and selected those that 
-are less then 8 resulting in only the hours of midnight to 8 am. There is some interesting variety of artists. 
+
+>I sorted by academic year, subsetted it, and then, used the fact that is military time to create a variable with only hours and selected those that are less then 8 resulting in only the hours of midnight to 8 am. There is some interesting variety of artists. 
 
 
 
@@ -404,7 +417,8 @@ diff + geom_line(aes(y = diff_in_vol, colour = "Diff Vol")) +
   labs(title="Difference in the Daily Percent Change in BTC and GOLD")
 
 ```
-Bitcoin is more volatile than gold, which is more volatile than most currencies. The volatilities appear to follow each other as they may follow the same trends,
+
+>Bitcoin is more volatile than gold, which is more volatile than most currencies. The volatilities appear to follow each other as they may follow the same trends,
 where people desire bitcoins when other currencies are devalued. The market for bitcoin is also open 247365 wherease gold is traded during bankers hours. I suggest 
 that people invest carefully in bitcoin, as regulation is sure to follow soon, and the volitility is unprecendented as a currency.
 I want to delve farther into this on my second draft.
