@@ -51,6 +51,7 @@ profiles <- profiles %>%
   mutate(is.female = ifelse(sex == "f", 1, 0)) #adding binary numeric variable for gender
 jukebox[jukebox==""] <- NA
 profiles[profiles==""] <- NA
+profiles$income[profiles$income=="-1"] <- NA
 essays[essays==""] <- NA
 profiles$last_online <- as.Date(profiles$last_online)
 ```
@@ -68,7 +69,7 @@ When fitting the logistic regression, you can put both the categorical variable 
 Don't worry about cross-validation for this assignment (i.e. out of sample prediction), only focus on predicting the dataset itself (within sample prediction).
 Part d) is now a bonus question.
 
-```{r, echo=FALSE, fig.width=12, fig.height=6}
+```{r, echo=FALSE, fig.width=12, fig.height=6, warning=FALSE}
 ggplot_missing <- function(x){
   x %>% 
     is.na %>%
@@ -85,7 +86,6 @@ ggplot_missing <- function(x){
          y = "Rows / observations", title="Missing Values of Random Sample")
 } #not my code thanks to Nicholas Tierney, at http://www.njtierney.com/r/missing%20data/rbloggers/2015/12/01/ggplot-missing-data/
 ggplot_missing(profiles) #shows which variables have the most missing
-
 ```
 
 >I looked at the variables that had the most amount of missing values to see what 
@@ -93,100 +93,69 @@ variables people either on purpose left blank or where to lazy to answer.
 If there are also patterns in the missing values, say they only added certain 
 questions later this would be important.
 
-```{r, echo=FALSE, fig.width=12, fig.height=6}
-profiles_body <- profiles %>% 
-  group_by(sex,body_type) %>% 
-  tally() %>% 
-  mutate(prop=n/sum(n))
-
-profiles_body$body_type<-recode(profiles_body$body_type,"'athletic'='masculine'") 
-profiles_body$body_type<-recode(profiles_body$body_type,"'jacked'='masculine'") 
-profiles_body$body_type<-recode(profiles_body$body_type,"'fit'='masculine'") 
-profiles_body$body_type<-recode(profiles_body$body_type,"'average'='masculine'")
-profiles_body$body_type<-recode(profiles_body$body_type,"'used up'='masculine'") 
-profiles_body$body_type<-recode(profiles_body$body_type,"'overweight'='masculine'")
-profiles_body$body_type<-recode(profiles_body$body_type,"'a little extra'='masculine'") 
-profiles_body$body_type<-recode(profiles_body$body_type,"'a little extra'='femine'")
-profiles_body$body_type<-recode(profiles_body$body_type,"'thin'='femine'")
-profiles_body$body_type<-recode(profiles_body$body_type,"'full figured'='femine'")
-profiles_body$body_type<-recode(profiles_body$body_type,"'curvy'='femine'")
-profiles_body$body_type<-recode(profiles_body$body_type,"'rather not say'='femine'")
-profiles_body$body_type<-recode(profiles_body$body_type,"'NA'='femine'")
-profiles_body$body_type<-recode(profiles_body$body_type,"'skinny'='femine'")
-profiles_body$body_type<-recode(profiles_body$body_type,"NA='femine'")
-
-
-body_type<- ggplot(profiles_body, aes(body_type, prop, fill=sex))+
-  geom_bar(stat="identity", position = "dodge") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-body_type
-
-```
-
 >I binned all the factors of the body type variable into two factors, creating a dichotomous variable for the logistic regression.
 I first plotted the variables to determine which factors should be added to masculine or feminine. 
-I also looked at the two distributions of heights. Notice the "jump" at around 72 inches, 6 ft, in the male height distribution; I believe that is jump is less due to 
-physiological reasons as much as psychological ones.
-
-```{r, echo=FALSE, fig.width=12, fig.height=6}
-heights <- ggplot(data=profiles, aes(x=height)) + 
-  geom_histogram(aes(y=..density..), binwidth = 1) + 
-  facet_wrap(~sex, nrow=2) +
-  coord_cartesian(xlim=c(55,85)) +
-  geom_vline(aes(xintercept = as.numeric(72), linetype = "4"), show.legend = FALSE, data = profiles)
-heights
-
-p <- ggplot(data=profiles,aes(x=sex, y=height)) +
-  geom_violin(scale="area") +
-  scale_y_continuous(limits = c(57, 78))
-p
-
-
-
-profiles_1 <- profiles %>% 
-  select(is.female, height, body_type)
-
-profiles_1$body_type<-recode(profiles_1$body_type,"'athletic'='masculine'") 
-profiles_1$body_type<-recode(profiles_1$body_type,"'jacked'='masculine'") 
-profiles_1$body_type<-recode(profiles_1$body_type,"'fit'='masculine'") 
-profiles_1$body_type<-recode(profiles_1$body_type,"'average'='masculine'")
-profiles_1$body_type<-recode(profiles_1$body_type,"'used up'='masculine'") 
-profiles_1$body_type<-recode(profiles_1$body_type,"'overweight'='masculine'")
-profiles_1$body_type<-recode(profiles_1$body_type,"'a little extra'='masculine'") 
-profiles_1$body_type<-recode(profiles_1$body_type,"'a little extra'='femine'")
-profiles_1$body_type<-recode(profiles_1$body_type,"'thin'='femine'")
-profiles_1$body_type<-recode(profiles_1$body_type,"'full figured'='femine'")
-profiles_1$body_type<-recode(profiles_1$body_type,"'curvy'='femine'")
-profiles_1$body_type<-recode(profiles_1$body_type,"'rather not say'='femine'")
-profiles_1$body_type<-recode(profiles_1$body_type,"'NA'='femine'")
-profiles_1$body_type<-recode(profiles_1$body_type,"'skinny'='femine'")
-profiles_1$body_type<-recode(profiles_1$body_type,"NA='femine'")
-
-ggplot(data=profiles_1, aes(x=is.female, y=height)) +
-  geom_jitter(height = .2, alpha = .3, aes(colour = body_type), size = 3)
-
-#ggplot(aes(x=reorder(eth1, n), y = n))
-
-profiles_1 <- na.omit(profiles_1)
-which(! complete.cases(profiles_1))
-log_reg <- glm(is.female ~.,family=binomial(link='logit'),data=profiles_1) #logistic regression using heights and body type
-summary(log_reg) #summary
+I also looked at the two distributions of heights. There is a "jump" at around 72 inches, 6 ft, in the male height distribution; I believe that is jump is less due to physiological reasons as much as psychological ones.
+I grouped the body_type variable into two answers, masculine and feminine. 
+athletic=masculine 
+jacked=masculine 
+fit=masculine 
+average=masculine
+used up=masculine 
+overweight=masculine
+a little extra=masculine 
+thin=feminine
+full figured=feminine
+curvy=feminine
+rather not say=feminine
+NA=feminine
+skinny=feminine
 
 
+```{r, echo=FALSE, fig.width=12, fig.height=6, warning=FALSE}
+profiles$body_type<-recode(profiles$body_type,"'athletic'='masculine'") 
+profiles$body_type<-recode(profiles$body_type,"'jacked'='masculine'") 
+profiles$body_type<-recode(profiles$body_type,"'fit'='masculine'") 
+profiles$body_type<-recode(profiles$body_type,"'average'='masculine'")
+profiles$body_type<-recode(profiles$body_type,"'used up'='masculine'") 
+profiles$body_type<-recode(profiles$body_type,"'overweight'='masculine'")
+profiles$body_type<-recode(profiles$body_type,"'a little extra'='masculine'") 
+profiles$body_type<-recode(profiles$body_type,"'a little extra'='feminine'")
+profiles$body_type<-recode(profiles$body_type,"'thin'='feminine'")
+profiles$body_type<-recode(profiles$body_type,"'full figured'='feminine'")
+profiles$body_type<-recode(profiles$body_type,"'curvy'='feminine'")
+profiles$body_type<-recode(profiles$body_type,"'rather not say'='feminine'")
+profiles$body_type<-recode(profiles$body_type,"'NA'='feminine'")
+profiles$body_type<-recode(profiles$body_type,"'skinny'='feminine'")
+profiles$body_type<-recode(profiles$body_type,"NA='feminine'")
 
+ggplot(profiles, aes(body_type))+
+  geom_bar(aes(fill = sex)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  labs(title="Proportion of the Binned body_type Variable by Sex")
+
+
+ggplot(data=profiles, aes(x=is.female, y=height)) +
+  geom_jitter(height = .2, alpha = .3, aes(colour = body_type), size = 3) +
+  labs(title="Jitter of height by Sex Showing the Body Type")
+
+profiles <- na.omit(profiles)
+which(! complete.cases(profiles))
+log_reg <- glm(is.female ~ height+body_type,family=binomial(link='logit'),data=profiles) #logistic regression using heights and body type
+kable(summary(log_reg)$coef, digits=2) #summary
 
 ```
 
->The intercept shows that clearly there are more males in the data set then women. At the cuttoff of 67 inches the variable body_type changes the probability from 0.37 with those that are feminine to 0.68551 for those that are masculine.
+>The intercept shows that clearly there are more males in the data set then women. There is associative mutltiplicative decrease in 0.270 in the odds of ebing female when using the masculine terms for describing body_type and a decrease of 0.527 odds per inch increase of height.
 
 ### b)
 
 Plot a histogram of the fitted probabilities $\widehat{p}_i$ for all users $i=1,
 \ldots, n=59943$ in your dataset.
 
-```{r, echo=FALSE, fig.width=12, fig.height=6}
+```{r, echo=FALSE, fig.width=12, fig.height=6, warning=FALSE}
 threshold <- .5
-profiles_prob <- profiles_1 %>% 
+profiles_prob <- profiles%>% 
   mutate(p.hat=fitted(log_reg))
 
 profiles_prob <- as.data.frame(profiles_prob)
@@ -209,11 +178,9 @@ prob <- ggplot(profiles_prob, aes(x=height,y=((43.639564 - 0.636127*(height)-1.3
   ylab("Logit") +
   geom_vline(aes(xintercept = ((43.639564-1.314507*0.5)/(0.636127)), color = "Change in Prob"))
 prob
-
 ```
 
->The fitted probabilities are not consistent not all of the probabilities this is due to our explanatory variables.
-The mosaic plot shows visually what proportion of sex is predicted correctly or not. I would say that because masculinity is fragile, our type one error would be predicting a male to be female and this model does OK at minimizing this. 
+>The mosaic plot shows visually what proportion of sex is predicted correctly or not. I would say that because masculinity is fragile, our type one error would be predicting a male to be female and this model does OK at minimizing this. 
 (43.639564 - 1.314507*(0.5))/(0.636127)) = 67.56876 inches
 
 
@@ -230,18 +197,23 @@ Display a 2 x 2 contingency table of `sex` and `predicted_sex` i.e. compare the
 predicted sex to the actual sex of all users. The sum of all the elements in
 your table should be $n=59943$. Comment on how well our predictions fared.
 
-```{r, echo=FALSE, fig.width=12, fig.height=6}
+```{r, echo=FALSE, fig.width=12, fig.height=6, warning=FALSE}
 
 g<- profiles_prob %>%
   group_by(is.female,predicted.female) %>% 
   tally()
-g
 kable(spread(g, predicted.female, n))
+h<- profiles_prob %>%
+  group_by(is.female,predicted.female) %>% 
+  tally() %>% 
+  mutate(prop=(100*(n/59943))) %>% 
+  select(-n)
+kable(spread(h, predicted.female, prop))
 
 ```
 
 >The predictions did OK. We miss predicted 3958 males to be female but because our sample is roughly 60,000 this is not to bad. 
-I wonder what other variables could create a more predictive model. Cross validation could also definitely help.
+I wonder what other variables could create a more predictive model. Cross validation could also definitely help. If we wanted to predict all women correctly we would set the decision threshold at 1. 
 
 ### d)
 
@@ -249,26 +221,25 @@ Say we wanted to have a **false positive rate** of about 20%, i.e. of the people
 we predicted to be female, we want to be wrong no more than 20% of the time. What
 decision threshold $p^*$ should we use?
 
-```{r, echo=FALSE, fig.width=12, fig.height=6}
+```{r, echo=FALSE, fig.width=12, fig.height=6, warning=FALSE}
 
-threshold.2 <- 0.2
-profiles_prob <- as.data.frame(profiles_prob)
+threshold.2 <- 0.5
 profiles_prob$predicted.female <- profiles_prob$p.hat >= threshold.2
-h<- profiles_prob %>%
+a<- profiles_prob %>%
+  subset(profiles_prob$is.female=="1") %>% 
   group_by(is.female,predicted.female) %>% 
   tally() %>% 
-  mutate(prop=(100*(n/59943))) %>% 
+  mutate(prop=(100*(n/sum(profiles$sex =="f")))) %>% 
   select(-n)
-h
 
+kable(spread(a, predicted.female, prop))
 
-kable(spread(h, predicted.female, prop))
 
 ```
 
 
->I dont know the exact mathematical process to this so I just kinda narrowed it down to a threshold of .2,
-this brings us only 17.5% of miss predicted males as females. 
+>I dont know the exact mathematical process to this so I just kinda narrowed it down to a threshold of .5,
+this brings us only 21.9762% of miss predicted males as females. 
 
 
 
@@ -285,7 +256,7 @@ mean anything to most people).
 What seasonal (i.e. cyclical) patterns do you observe?
 
 
-```{r, echo=FALSE, fig.width=12, fig.height=6}
+```{r, echo=FALSE, fig.width=12, fig.height=6, warning=FALSE}
 
 jukebox$date  <- parse_date_time(jukebox$date_time, orders="a b d hms y")
 
@@ -308,9 +279,23 @@ ggplot(jukebox1, aes(date2, count_per_w)) +
   geom_point(stat="identity", size=.2) +
   geom_line() + 
   labs(title="Count of Songs Played Per Week") +
-  geom_vline(xintercept = as.numeric(as.Date(dmy("1/6/2004","1/6/2005","1/6/2006","1/6/2007","1/6/2008","1/6/2009"))), linetype=4, colour="red") +
+  geom_vline(xintercept = as.numeric(as.Date(dmy(c("1/6/2004","1/6/2005","1/6/2006","1/6/2007","1/6/2008","1/6/2009"))), linetype=4, colour="red")) +
   geom_vline(xintercept = as.numeric(as.Date(dmy("1/9/2004","1/9/2005","1/9/2006","1/9/2007","1/9/2008","1/9/2009"))), linetype=4, colour="blue")
   
+june<-data.frame(date=as.Date(dmy(c("1/6/2004","1/6/2005","1/6/2006","1/6/2007","1/6/2008","1/6/2009"))), event=c("Summer", "Summer", "Summer", "Summer", "Summer", "Summer"))
+
+
+ggplot(jukebox1, aes(date2, count_per_w)) + 
+   geom_point(stat="identity", size=.2) +
+   geom_line() + 
+   labs(title="Count of Songs Played Per Week") +
+   geom_vline(xintercept = as.numeric(as.Date(dmy("1/6/2004","1/6/2005","1/6/2006","1/6/2007","1/6/2008","1/6/2009"))), linetype=4, colour="red") +
+  geom_text(aes(x=as.Date(dmy("1/6/2004")), label="\nSummer Break Start", y=1500), colour="red", angle=90) +
+   geom_vline(xintercept = as.numeric(as.Date(dmy("1/9/2004","1/9/2005","1/9/2006","1/9/2007","1/9/2008","1/9/2009"))), linetype=4, colour="blue") +
+  geom_text(aes(x=as.Date(dmy("1/9/2004")), label="\nSummer Break End", y=1500), colour="blue", angle=90, color="blue")+
+  xlab("Date")+
+  ylab("Counts Per Week")
+
 ```
 
 >It is pretty apparent summer school students don't use the juke box as much as those during the normal academic months.
@@ -326,7 +311,7 @@ shift" during the academic year? Define
 * the "graveyard shift" as midnight to 8am
 * the academic year as September through May (inclusive)
 
-```{r, echo=FALSE, fig.width=12, fig.height=6}
+```{r, echo=FALSE, fig.width=12, fig.height=6, warning=FALSE}
 a <- interval(ymd(20030901, tz = "EST"), ymd(20040601, tz = "EST"))
 b <- interval(ymd(20040901, tz = "EST"), ymd(20050601, tz = "EST"))
 c <- interval(ymd(20050901, tz = "EST"), ymd(20060601, tz = "EST"))
@@ -344,23 +329,19 @@ jukebox_songs <- subset(jukebox_grave, hour <= 8,
 jukebox_grave <- subset(jukebox_grave, hour <= 8, 
                         select=c(artist, hour))
 
-
 jukebox_songs_top <- jukebox_songs %>% 
   group_by(track) %>% 
   tally() 
-
 jukebox_grave_top <- jukebox_grave %>% 
   group_by(artist) %>% 
   tally() 
-
 da <- jukebox_songs_top  %>%
     arrange(-n) %>%
     slice(1:10)
-da
 df <- jukebox_grave_top %>%
     arrange(-n) %>%
     slice(1:10)
-df
+
 kable(da)
 kable(df)
 ```
@@ -380,7 +361,7 @@ Let our measure of volatility be the relative change from day-to-day in price.
 Let the reference currency be US dollars. Analyze these results and provide
 insight to a foreign currency exchanger.
 
-```{r, echo=FALSE, fig.width=12, fig.height=6}
+```{r, echo=FALSE, fig.width=12, fig.height=6, warning=FALSE}
 
 bitcoin <- Quandl("BAVERAGE/USD") %>% tbl_df()
 bitcoin <- rename(bitcoin, Avg = `24h Average`, Total.Volume = `Total Volume`)
@@ -441,5 +422,20 @@ cheese <- Quandl("USDANASS/NASS_CHEESEPRODUCTIONMEASUREDINLB") %>%
   tbl_df()
 milk <-  Quandl("USDANASS/NASS_MILKPRODUCTIONMEASUREDINLB") %>% 
   tbl_df()
+cheese$cheese_value <- cheese$Value
+milk$milk_value <- milk$Value 
+Value <- inner_join(milk, cheese, by = "Date") %>% 
+  select(-Value.x,-Value.y)
+Value <- as.data.frame(Value)
+
+p<- ggplot(Value, aes(Date))
+p +  geom_line(aes(y=cheese_value*10+85000000000), color = "red")+
+  geom_line(aes(y=(milk_value)), color = "blue") +
+  geom_line(aes(y=(cheese_value)), color = "green") +
+  labs(title="Here LBs Cheese*10+8.5e+10\n to Model Milk Production in LBs")+
+  xlab("Cheese adjusted in red and milk in blue, cheese unadjusted in green")+
+  ylab("LBsMilk, LBs Cheese*10+8.5e+10, and Lbs Cheese")
 ```
+
+>Cheese production lags Milk production by `(milk - 8.5e+10)/10` LBs. These dairy products don't appear to be diversified.
 
